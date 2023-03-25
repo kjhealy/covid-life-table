@@ -52,7 +52,10 @@ fname_labs <- substr(fname_stubs, start = 1, stop = 2)
 fnames <- paste0("https://", url_loc, fname_stubs)
 fnames <- set_names(fnames, fname_labs)
 
-## Get the Excel files.
+## Now we have e.g.
+fnames[1:3]
+
+## Get all the Excel files.
 ## Unfortunately read_xlsx() can't take a URL as a path so we
 ## write a function do it ourselves, and clean what comes down.
 get_lifetable <- function(x) {
@@ -62,7 +65,10 @@ get_lifetable <- function(x) {
     filter(!str_detect(age, "SOURCE")) # remove trailing source line
 }
 
-## Now get all the states in one step
+## Now get all the states in one step.
+## map_dfr() will use the name attribute of fnames
+## as the id, which lets us conveniently create a
+## state column.
 life_tabs <- fnames |>
   map_dfr(~ get_lifetable(.x),
           .id = "state")
