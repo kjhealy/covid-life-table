@@ -7,6 +7,7 @@
 # install.packages("here")
 # install.packages("janitor")
 # install.packages("readxl")
+# install.packages("httr")
 # install.packages("curl")
 
 library(tidyverse)
