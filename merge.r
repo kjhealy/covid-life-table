@@ -97,6 +97,7 @@ merged_table <- left_join(deaths, lt_clean,
 
 ## I think this is what we want?
 merged_table |>
-  select(state_abbr, month_code, five_year_age_groups, age, deaths, qx:ex)
+  select(state_abbr, month_code, five_year_age_groups, age, deaths, qx:ex) |>
+  print(n = 50)
 
 
