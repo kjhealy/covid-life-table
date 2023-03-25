@@ -58,7 +58,7 @@ fnames <- set_names(fnames, fname_labs)
 ## write a function do it ourselves, and clean what comes down.
 get_lifetable <- function(x) {
   httr::GET(x, httr::write_disk(tf <- tempfile(fileext = ".xlsx")))
-  readxl::read_xlsx(tf, skip = 2) |>
+  readxl::read_xlsx(tf, skip = 2, .name_repair = "unique_quiet") |>
     rename("age" = `...1`) |>
     filter(!str_detect(age, "SOURCE")) # remove trailing source line
 }
