@@ -35,10 +35,10 @@ deaths <- read_tsv(here("data", "cdc_covid_provisional.txt"),
 ## We'll get them all at once remotely.
 
 ## First, open a connection to get the file names
-ftp_url <- "ftp://ftp.cdc.gov/pub/Health_Statistics/NCHS/Publications/NVSR/71-02/"
+url_loc <- "ftp.cdc.gov/pub/Health_Statistics/NCHS/Publications/NVSR/71-02/"
 list_files <- curl::new_handle()
 curl::handle_setopt(list_files, ftp_use_epsv = TRUE, dirlistonly = TRUE)
-con <- curl::curl(url = ftp_url, "r", handle = list_files)
+con <- curl::curl(url = paste0("ftp://", url_loc), "r", handle = list_files)
 files <- readLines(con)
 close(con)
 
@@ -49,8 +49,7 @@ fname_labs <- substr(fname_stubs, start = 1, stop = 2)
 
 ## Construct the filenames and give them a name attribute of the 2-letter state
 ## abbreviation, so they are trackable in the data frame we're about to make.
-http_base <- "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Publications/NVSR/71-02/"
-fnames <- paste0(http_base, fname_stubs)
+fnames <- paste0("https://", url_loc, fname_stubs)
 fnames <- set_names(fnames, fname_labs)
 
 ## Get the Excel files.
