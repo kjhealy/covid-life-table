@@ -42,8 +42,8 @@ con <- curl::curl(url = paste0("ftp://", url_loc), "r", handle = list_files)
 files <- readLines(con)
 close(con)
 
-## The files ending in "1" are the overall life tables
-## The others are for M/F etc. We'll just use the 1s here.
+## The Excel files ending in "1" are the overall life tables.
+## The others are for M, F, etc. We'll just use the 1s here.
 fname_stubs <- files[str_detect(files, "1")]
 fname_labs <- substr(fname_stubs, start = 1, stop = 2)
 
