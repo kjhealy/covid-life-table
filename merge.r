@@ -74,9 +74,19 @@ life_tabs
 ## Next we need a bridging table.
 ## Unix sort order messes up our age categories, but
 ## `rep` is a surprisingly useful function.
-agecat_xwalk <- tibble(age = c(0, 15:100, 1:4, 10:14, 5:9, NA),
-                       five_year_age_groups_code = rep(unique(deaths$five_year_age_groups_code),
-                                                       c(1, rep(5, 17), 1, rep(4, 1), rep(5, 2), 1)))
+
+## Depending on the age distribution of deaths we're not
+## sure which ages we'll get, so we manually construct them
+## all for this table.
+all_five_year_codes <- c("0", "1-4", "5-9", "10-14", "15-19", "20-24",
+                         "25-29", "30-34", "35-39", "40-44", "45-49",
+                         "50-54", "55-59", "60-64", "65-69", "70-74",
+                         "75-79", "80-84", "85-89", "90-94",
+                         "95-99", "100+", "NS")
+
+agecat_xwalk <- tibble(age = c(0, 1:100, NA),
+                       five_year_age_groups_code = rep(all_five_year_codes,
+                                                       c(1, rep(4, 1), rep(5, 17), rep(5, 2), 1, 1)))
 agecat_xwalk
 
 ## Now we clean the life tables and join the bridging table to them.
