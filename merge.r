@@ -37,7 +37,7 @@ deaths <- read_tsv(here("data", "cdc_covid_provisional.txt"),
 ftp_url <- "ftp://ftp.cdc.gov/pub/Health_Statistics/NCHS/Publications/NVSR/71-02/"
 list_files <- curl::new_handle()
 curl::handle_setopt(list_files, ftp_use_epsv = TRUE, dirlistonly = TRUE)
-con <- curl::curl(url = url, "r", handle = list_files)
+con <- curl::curl(url = ftp_url, "r", handle = list_files)
 files <- readLines(con)
 close(con)
 
@@ -92,8 +92,11 @@ lt_clean
 ## Finally, we can join this to the deaths table
 merged_table <- left_join(deaths, lt_clean,
                           by = c("state_abbr", "five_year_age_groups_code"),
-                          relationship = "many-to-many")
+                          relationship = "many-to-many") |>
+ arrange(residence_state_code, month_ym, age)
 
 ## I think this is what we want?
 merged_table |>
   select(state_abbr, month_code, five_year_age_groups, age, deaths, qx:ex)
+
+
