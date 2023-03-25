@@ -86,7 +86,9 @@ all_five_year_codes <- c("0", "1-4", "5-9", "10-14", "15-19", "20-24",
 
 agecat_xwalk <- tibble(age = c(0, 1:100, NA),
                        five_year_age_groups_code = rep(all_five_year_codes,
-                                                       c(1, rep(4, 1), rep(5, 17), rep(5, 2), 1, 1)))
+                                                       c(1, rep(4, 1),
+                                                         rep(5, 19),
+                                                         1, 1)))
 agecat_xwalk
 
 ## Now we clean the life tables and join the bridging table to them.
