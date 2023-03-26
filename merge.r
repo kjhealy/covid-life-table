@@ -42,6 +42,16 @@ con <- curl::curl(url = paste0("ftp://", url_loc), "r", handle = list_files)
 files <- readLines(con)
 close(con)
 
+
+## Alternatively, if you don't want to deal with the curl stuff, use rvest to
+## extract the link elements on the page:
+# files <- rvest::read_html("https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Publications/NVSR/71-02/") |>
+#  rvest::html_elements("a") |>
+#  rvest::html_text2()
+## And drop first one, which is '[To Parent Directory]'
+# files <- files[2:length(files)]
+
+
 ## The Excel files ending in "1" are the overall life tables.
 ## The others are for M, F, etc. We'll just use the 1s here.
 fname_stubs <- files[str_detect(files, "1")]
