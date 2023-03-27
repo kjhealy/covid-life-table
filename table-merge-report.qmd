@@ -1,0 +1,267 @@
+---
+title: "Covid Mortality/Life-Table Merge Report"
+author: "Kieran Healy"
+date: 2023-03-26
+format: 
+  pdf: 
+    mainfont: Minion Pro
+    mainfontoptions: 
+      - Numbers=OldStyle
+    sansfont: Minion Pro
+    monofont: Berkeley Mono
+---
+
+The goal is to read in and merge the `covid` and `noncovid` data files. We can do this by joining them by `state` and `age0` while allowing many-to-many relationships. 
+
+# Read in the tables
+
+```{r, message=FALSE}
+library(tidyverse)
+library(here)
+library(haven)  # To read the Stata files
+
+covid <- read_dta(here("data", "covid.dta"))
+noncovid <- read_dta(here("data", "noncovid.dta"))
+```
+
+Here's the `covid` table:
+
+```{r}
+#| echo: FALSE
+covid
+```
+
+And the non-covid table:
+
+```{r}
+#| echo: FALSE
+noncovid
+```
+
+# Join the tables and check them
+
+If we join the two stables by the key columns they share (`state` and `age0`) we get the following:
+
+```{r}
+alldata <- full_join(covid, noncovid,
+                     by = c("state", "age0"),
+                     relationship = "many-to-many") |> 
+  relocate(age, .before = covid) |>
+  arrange(year, state, month, age)
+
+alldata
+```
+
+We can see that where no covid deaths are observed we'll get an `NA`. If we focus on particular subsets we can do a quick sanity-check to see if we are getting the results we should be from the join. For example, based on the codebook we can make a table of observations for the entire U.S. for the whole pandemic, just focusing on some of the columns. The results are shown in @tbl-us.
+
+```{r}
+#| echo: FALSE
+#| results: "asis"
+#| label: tbl-us
+#| tbl-cap: "All pandemic, all months, for the whole country (selected columns only)"
+
+alldata |>
+  # All pandemic, all months, whole country
+  filter(level == 0, year == 1900, state == "US") |>
+  select(state, age0, age, covid, total, dx, ex, totdead, 
+         pdead, pop19, uspop) |>
+  mutate(across(dx:pdead, ~ round(.x, 2))) |> 
+  kableExtra::kbl(booktabs = T, longtable = T, linesep = "") |> 
+  kableExtra::kable_styling(latex_options = "striped")
+```
+
+
+For ages over 85, the values of `pop19` and `uspop` will be reported as `NA`, because they come from the `noncovid` table and a join can't be made for those values. This applies to every state, not just the results for the US as a whole. If we want to add them we can use `fill()` to append them based on the value for 85 years of age. We can do this when we make the table, _after_ arranging by year, state, month, and age:
+
+```{r}
+alldata <- full_join(covid, noncovid,
+                     by = c("state", "age0"),
+                     relationship = "many-to-many") |> 
+  relocate(age, .before = covid) |>
+  arrange(year, state, month, age) |> 
+  # fill pop19 and uspop downwards for ages 85>
+  fill(pop19, uspop)
+```
+
+The other source of missingness is in the `covid` and `total` columns, which will be `NA` for any state-year-month-age combination where there were no recorded deaths from Covid-19, or no recorded deaths at all, respectively. We'll see this most obviously if we look at monthly data for almost any state. For example @tbl-ct shows the first thirty rows of data for month 24 of the pandemic in Connecticut.
+
+```{r}
+#| echo: FALSE
+#| results: "asis"
+#| label: tbl-ct
+#| tbl-cap: "First 30 rows of data for Connecticut in Month 24 (selected columns only)"
+
+alldata |>
+  # 2020, Connecticut
+  filter(level == 2, month == 24, state == "CT") |>
+  select(state, year, month, age0, age, covid, total, dx, ex, totdead, pdead) |>
+  mutate(across(dx:pdead, ~ round(.x, 2))) |> 
+  slice_head(n = 30) |> 
+  kableExtra::kbl(booktabs = T, linesep = "") |> 
+  kableExtra::kable_styling(latex_options = "striped")
+```
+
+Here we can see two issues. First, no Covid deaths are recorded for anyone under 25. Second, most of these get `NA` values as there's nothing recorded for them. But a few (for the Age 1-4 group) are recorded as `0`. This may matter when deciding what to do with the `NA` values in `covid`. All this applies to the `total` column also. If the missings are dropped for `covid` the full table will be substantially smaller: 
+
+```{r}
+alldata |> 
+  drop_na(covid)
+```
+
+We lose about 54,000 rows. However, a large number of zero rows will be retained if we do this, which might not be what's wanted:
+
+```{r}
+alldata |> 
+  drop_na(covid) |> 
+  filter(covid == 0) |> 
+  tally()
+```
+
+An alternative would be to recode all the `covid` missing values to be zeros, and do the same for all the `total` values, if you're confident that's what the `NA` means in this context:
+
+```{r}
+alldata |> 
+  mutate(covid = case_match(covid,NA ~ 0, .default = covid), 
+         total = case_match(total, NA ~ 0, .default = total)) |> 
+  filter(covid == 0) |> 
+  tally()
+```
+
+This gives us about 110,000 rows with zero for `covid`. We get 24,367 zeros for `total`. For level 0 (the whole pandemic) there are no such rows for `total`:
+
+```{r}
+alldata |> 
+  mutate(covid = case_match(covid,NA ~ 0, .default = covid), 
+         total = case_match(total, NA ~ 0, .default = total)) |> 
+  filter(level == 0, total == 0)
+```
+
+For level 1 there are about 1,500: 
+
+```{r}
+alldata |> 
+  mutate(covid = case_match(covid,NA ~ 0, .default = covid), 
+         total = case_match(total, NA ~ 0, .default = total)) |> 
+  filter(level == 1, total == 0)
+```
+
+
+And for level 2, about 23,000:
+
+```{r}
+alldata |> 
+  mutate(covid = case_match(covid,NA ~ 0, .default = covid), 
+         total = case_match(total, NA ~ 0, .default = total)) |> 
+  filter(level == 2, total == 0)
+```
+
+
+The main worry about coding these `NA`s as zero would be that they're really actually missing due to late reporting, and not zeros at all. If that were the case we'd exepect more recent months to have a higher share of `NA` values. @fig-na-total suggests this is in fact the case. @fig-na-covid shows the pattern of `NA` values over time for `covid` is quite different. @fig-na-facet is another view of this, showing the proportion of missing and zero values in the `covid` table for covid deaths and total deaths.
+
+```{r}
+#| echo: FALSE
+#| results: "asis"
+#| label: fig-na-total
+#| fig-width: 8
+#| fig-height: 6 
+#| fig-cap: "Missingness on 'total' for some age groups increases sharply nearer the present."
+
+alldata |> 
+  filter(level == 2) |> 
+  group_by(month, age0) |> 
+  summarize(is_missing = sum(is.na(total)), .groups = "keep") |> 
+  ggplot(aes(x = month, y = is_missing)) + 
+  geom_line() + 
+  facet_wrap(~ factor(age0)) + 
+  labs(title = "Missingness over time on 'total', by age group", 
+       subtitle = "For level 2 (monthly) data",
+       x = "Pandemic Month", y = "Count of rows missing on 'total'")
+
+```
+
+
+```{r}
+#| echo: FALSE
+#| results: "asis"
+#| label: fig-na-covid
+#| fig-width: 8
+#| fig-height: 6
+#| fig-cap: "Missingness on 'covid' is more varied."
+
+alldata |> 
+  filter(level == 2) |> 
+  group_by(month, age0) |> 
+  summarize(is_missing = sum(is.na(covid)), .groups = "keep") |> 
+  ggplot(aes(x = month, y = is_missing)) + 
+  geom_line() + 
+  facet_wrap(~ factor(age0)) + 
+  labs(title = "Missingness over time on 'covid', by age group", 
+       subtitle = "For level 2 (monthly) data",
+       x = "Pandemic Month", y = "Count of rows missing on 'covid'")
+```
+
+
+```{r}
+#| echo: FALSE
+#| results: "asis"
+#| label: fig-na-facet
+#| fig-width: 7
+#| fig-height: 10
+#| fig-cap: "Proportions of missings and zeros by age group and outcome."
+
+covid |> 
+  filter(level == 2, local == 1) |> 
+  mutate(Covid = case_match(covid, 
+                               NA ~ "Missing", 0 ~ "Zero", .default = "Count"), 
+         Total = case_match(total, 
+                               NA ~ "Missing", 0 ~ "Zero", .default = "Count")) |> 
+  select(month, age0, Covid, Total) |> 
+  pivot_longer(Covid:Total, values_to = "Observation") |> 
+  group_by(month, age0, name) |> 
+  count(Observation) |>
+  ungroup() |> 
+  complete(month, age0, name, Observation,
+             fill = list(n = 0)) |> 
+  group_by(month, age0, name) |> 
+  mutate(prop = n/sum(n)) |> 
+  filter(Observation != "Count") |> 
+  ggplot(aes(x = month, y = prop, fill = Observation)) +
+  geom_col() +
+  facet_grid(age0 ~ name) + 
+  scale_fill_manual(values = c("#4EAFF0", "#EF9B2D")) + 
+  labs(x = "Pandemic Month", y = "Proportion of observations", 
+       title = "Proportion Missings and Zeros by age group and outcome variable", 
+       subtitle = "Aggregated state counts (level 2)") + 
+  theme_bw() +
+  theme(legend.position = "top")
+
+```
+
+
+
+# Final Table
+
+For now I fill the missing population values for ages 86-100 with the value for age 85, but don't replace the `NA` values with zeros in `covid` or `total`. The code to make the table is:
+
+```{r}
+covid <- read_dta(here("data", "covid.dta"))
+noncovid <- read_dta(here("data", "noncovid.dta"))
+
+# left_join() would have the same effect
+alldata <- full_join(covid, noncovid,
+                     by = c("state", "age0"),
+                     relationship = "many-to-many") |> 
+  relocate(age, .before = covid) |>
+  arrange(year, state, month, age) |> 
+  # fill pop19 and uspop downwards for ages 85>
+  fill(pop19, uspop) 
+```
+
+Which gives us this table:
+
+```{r}
+alldata
+```
+
+
+
